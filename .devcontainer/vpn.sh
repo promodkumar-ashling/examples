@@ -17,8 +17,9 @@ if ! pgrep -f NEService >/dev/null; then
   sleep 3
 fi
 
-# ponytail: flag names not verified on Linux 10.x; if this fails, check `nxcli connect --help`
-sudo nxcli connect -s "$VPN_SERVER" -u "$VPN_USER" -p "$VPN_PASS" -d "$VPN_DOMAIN"
+# Direct form: nxcli <server[:port]> -u -p -d (no saved profile needed).
+# First run may ask to trust the server certificate; answer it once. Not using --always-trust on purpose.
+sudo nxcli "$VPN_SERVER" -u "$VPN_USER" -p "$VPN_PASS" -d "$VPN_DOMAIN"
 
 sleep 5
 echo "--- VPN interface ---"
