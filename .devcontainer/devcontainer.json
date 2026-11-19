@@ -1,0 +1,11 @@
+{
+  "name": "MIPS examples + SonicWall VPN",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  // NetExtender 10.x needs a tun device and network admin rights inside the container
+  "runArgs": ["--cap-add=NET_ADMIN", "--cap-add=NET_RAW", "--device=/dev/net/tun"],
+  // Installs netcat (for testing) and NetExtender from the "netextender" release of this repo
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y netcat-openbsd && gh release download netextender --pattern '*.deb' -D /tmp/nx --clobber && sudo apt-get install -y /tmp/nx/*.deb"
+}
