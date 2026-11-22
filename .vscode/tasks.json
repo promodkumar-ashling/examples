@@ -1,0 +1,25 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build project",
+      "type": "shell",
+      "command": "bash build.sh ${input:project}",
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": { "base": "$gcc", "fileLocation": ["autoDetect", "${workspaceFolder}"] }
+    }
+  ],
+  "inputs": [
+    {
+      "id": "project",
+      "type": "pickString",
+      "description": "Which example to build?",
+      "options": [
+        { "label": "sum", "value": "sum" },
+        { "label": "picojpeg", "value": "riscv-picojpeg-cmake" }
+      ],
+      "default": "sum"
+    }
+  ]
+}

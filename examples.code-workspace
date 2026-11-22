@@ -1,7 +1,0 @@
-{
-  "folders": [
-    { "path": "sum", "name": "sum" },
-    { "path": "riscv-picojpeg-cmake", "name": "picojpeg" },
-    { "path": ".", "name": "repo (README, .devcontainer)" }
-  ]
-}

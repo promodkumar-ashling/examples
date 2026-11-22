@@ -1,2 +1,4 @@
 build/
-.vscode/
+# Keep the shared build task, ignore everything else the extension generates in .vscode
+.vscode/*
+!.vscode/tasks.json

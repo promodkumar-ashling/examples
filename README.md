@@ -26,8 +26,9 @@ and connects to an **Ashling GDB server** running on the remote PC that has the 
 | `.devcontainer/devcontainer.json` | Codespace definition: Ubuntu, GitHub CLI, tun device, installs NetExtender |
 | `.devcontainer/vpn.sh` | Connects the Codespace to the remote network VPN |
 | `.gitattributes` | Keeps `*.sh` files with LF line endings so they run on Linux |
-| `examples.code-workspace` | Opens each example as its own folder so they build separately |
-| `.gitignore` | Keeps generated `build/` and `.vscode/` out of git |
+| `.vscode/tasks.json` | **Build project** task (Ctrl+Shift+B) with a project picker |
+| `build.sh` | Builds one example with its own SDK compiler (`sum` → MIPS toolchain, `picojpeg` → RISC-V toolchain) |
+| `.gitignore` | Keeps generated `build/` and other `.vscode/` files out of git |
 
 ---
 
@@ -96,9 +97,10 @@ A change to `vpn.sh` only needs `git pull`.
 ### 7. Install the Ashling extension and SDK (first time per Codespace)
 1. Install the Ashling RiscFree `.vsix` **inside the Codespace** (it must show under *Codespace – Installed*, not *Local*).
 2. Let the extension download the **Linux** Ashling SDK.
-3. Open the workspace: **☰ → File → Open Workspace from File… → `examples.code-workspace`**.
-   Each example (`sum`, `picojpeg`) shows as its own folder; build the one you want.
-   Opening the repo root instead makes the extension build only the first CMake project it finds.
+3. Build: press **Ctrl+Shift+B** (or **Terminal → Run Build Task**) and pick **sum** or **picojpeg**.
+   Output goes to `<project>/build/`. From the terminal: `bash build.sh sum`.
+   Both SDKs must be installed (`sum` uses the MIPS toolchain, `picojpeg` the RISC-V toolchain).
+   To add an example: add a line to the `case` in `build.sh` and an option in `.vscode/tasks.json`.
 
 ### 8. Connect the VPN
 ```bash
