@@ -45,7 +45,10 @@ and connects to an **Ashling GDB server** running on the remote PC that has the 
 3. Dropped the `.deb` into the **"Attach binaries by dropping them here"** box near the bottom
    (the description box rejects `.deb` with "We don't support that file type"), then **Publish release**.
 
-### 3. Store the VPN login as Codespaces secrets
+### 3. (Optional) Store the VPN login as Codespaces secrets
+Skip this to type the server, username and password each time `vpn.sh` runs (the password isn't shown while typing).
+Any secret that is set is used instead of asking.
+
 GitHub → profile picture → **Settings → Codespaces → Codespace user secrets → New secret**.
 For each one set **Repository access** to this repo.
 
@@ -64,9 +67,9 @@ Secrets are read only when a Codespace starts: after adding or changing one, sto
   - `postCreateCommand` – installs `netcat` and downloads + installs NetExtender from the `netextender` release.
     Runs **once when the Codespace is created**, not on every start.
 - **`vpn.sh`**
-  - Checks the 4 secrets exist.
+  - Uses the secrets that are set and asks for any missing server / username / password (domain optional).
   - Starts the NetExtender service by hand (`/usr/local/netextender/NEService`) – Codespaces has no systemd.
-  - Connects with `sudo nxcli "$VPN_SERVER" -u "$VPN_USER" -p "$VPN_PASS" -d "$VPN_DOMAIN"`.
+  - Connects with `sudo nxcli <server> -u <user> -p <password> [-d <domain>]`.
 
 ### 5. Prepare the remote GDB server PC
 1. Find the PC's real IP: run `ipconfig` and use the **Ethernet adapter Ethernet → IPv4 Address**.
@@ -103,11 +106,15 @@ A change to `vpn.sh` only needs `git pull`.
    To add an example: add a line to the `case` in `build.sh` and an option in `.vscode/tasks.json`.
 
 ### 8. Connect the VPN
+When the Codespace opens, the **Connect VPN** task runs `vpn.sh` automatically in its own terminal. If it asks to trust the
+server certificate, click into that terminal and type **`T`**. Without secrets it first asks for the server
+(`<vpn-server-ip>:4433`), username and password in the same terminal. (If VS Code asks whether to allow automatic tasks, choose **Allow**.) To run it by hand:
 ```bash
 bash .devcontainer/vpn.sh
 ```
+Running it while already connected just prints the VPN interface.
 - First run: certificate prompt → answer **`T`** (Trust). It's Ashling's self-signed server certificate.
-- If asked *"Please select a domain(id)"* type the **number** (e.g. `1`), and fix the `VPN_DOMAIN` secret.
+- If asked *"Please select a domain(id)"* type the **number** (e.g. `1`). Set a `VPN_DOMAIN` secret to skip this.
 - Success looks like:
   ```
   NetExtender has been connected.
@@ -152,4 +159,5 @@ host `<gdbserver-pc-ip>`, port `<port>`, do **not** start a local GDB server. Pr
 - [x] Remote PC reachable over VPN (`nc` gets *Connection refused*, i.e. the host answers)
 - [ ] GDB server listening on a network port, `nc` → `succeeded`
 - [ ] Full debug session (load, breakpoint, step) with F5
-- [ ] Optional: make the repo Private; auto-connect VPN with `"postStartCommand": "bash .devcontainer/vpn.sh"`
+- [x] VPN auto-connects when the Codespace opens (`Connect VPN` task, runOn folderOpen)
+- [ ] Optional: make the repo Private

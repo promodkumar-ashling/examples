@@ -7,5 +7,12 @@
   // NetExtender 10.x needs a tun device and network admin rights inside the container
   "runArgs": ["--cap-add=NET_ADMIN", "--cap-add=NET_RAW", "--device=/dev/net/tun"],
   // Installs netcat (for testing) and NetExtender from the "netextender" release of this repo
-  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y netcat-openbsd && gh release download netextender --pattern '*.deb' -D /tmp/nx --clobber && sudo apt-get install -y /tmp/nx/*.deb"
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y netcat-openbsd && gh release download netextender --pattern '*.deb' -D /tmp/nx --clobber && sudo apt-get install -y /tmp/nx/*.deb",
+  // The VPN is connected by the "Connect VPN" task in .vscode/tasks.json, which runs in a terminal
+  // when the codespace opens, so the certificate "Trust?" prompt can be answered there.
+  "customizations": {
+    "vscode": {
+      "settings": { "task.allowAutomaticTasks": "on" }
+    }
+  }
 }
