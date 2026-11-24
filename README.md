@@ -1,8 +1,8 @@
 # Ashling examples – Codespace build and remote debug
 
-Build the Ashling examples in a **GitHub Codespace** and debug them on a real board connected to a
+Build the Ashling example in a **GitHub Codespace** and debug it on a board connected to a
 remote machine. The Codespace joins the remote network over the **SonicWall VPN (NetExtender)**
-and connects to an **Ashling GDB server** running on the remote PC that has the **Opella-XD** probe attached.
+and connects to an **Ashling GDB server** running on the remote PC.
 
 ```
  GitHub Codespace (cloud)                       Remote network
@@ -10,43 +10,31 @@ and connects to an **Ashling GDB server** running on the remote PC that has the 
  │ VS Code + Ashling ext.   │ ═════════════════ │ Remote PC  <gdbserver-pc-ip>  │
  │ Ashling SDK (Linux)      │   nxcli (TLS)     │ Ashling GDB server :<port>    │
  │ gdb ── target remote ────┼──────────────────▶│      │ USB                    │
- └──────────────────────────┘                   │  Opella-XD ── target board    │
+ └──────────────────────────┘                   │  Debug probe ── target board  │
                                                 └──────────────────────────────┘
 ```
 
-> **Security:** this repo is public. Never commit VPN addresses, usernames, passwords or remote machine IPs.
-> They live only in Codespaces secrets (step 3). Values below in `<angle brackets>` are placeholders.
-
-## Repository contents
+## What's in the repo
 
 | Path | What it is |
 |---|---|
-| `sum/` | Sum example from the Ashling examples package (`sum.zip`) |
-| `riscv-picojpeg-cmake/` | picojpeg example |
-| `.devcontainer/devcontainer.json` | Codespace definition: Ubuntu, GitHub CLI, tun device, installs NetExtender |
-| `.devcontainer/vpn.sh` | Connects the Codespace to the remote network VPN |
-| `.gitattributes` | Keeps `*.sh` files with LF line endings so they run on Linux |
-| `.vscode/tasks.json` | **Build project** task (Ctrl+Shift+B) with a project picker |
-| `build.sh` | Builds one example with its own SDK compiler (`sum` → MIPS toolchain, `picojpeg` → RISC-V toolchain) |
-| `.gitignore` | Keeps generated `build/` and other `.vscode/` files out of git |
+| `riscv-picojpeg-cmake/` | picojpeg example (CMake), built with the Ashling **RISC-V** SDK |
+| `.devcontainer/` | Codespace definition: installs the NetExtender VPN client, and `vpn.sh` to connect |
+| `.vscode/tasks.json` | **Connect VPN** task, run automatically when the Codespace opens |
+
+## Before you start
+
+You need:
+- Access to this repo on GitHub, with Codespaces enabled for your account.
+- Your **SonicWall VPN** login: server (`<vpn-server-ip>:4433`), username, password and, optionally, domain.
+- For debugging: a PC on the remote network with an Ashling debug probe and the target board attached (see step 6).
 
 ---
 
-## One-time setup
+## Getting started
 
-### 1. Put the examples in the repo
-1. Took `sum.zip` from the Ashling examples vcpkg artifact and unzipped it.
-2. Created this repo on GitHub (empty: no README / .gitignore / license) and pushed the example.
-
-### 2. Upload the Linux VPN client as a release
-1. From the SonicWall download page, picked **NetExtender Linux AMD 64-Bit**
-   (file `NetExtender-linux-amd64-10.3.6-39.deb`, Ubuntu x64 package).
-2. On GitHub: **Releases → Create a new release**, tag **`netextender`**, title `netextender`.
-3. Dropped the `.deb` into the **"Attach binaries by dropping them here"** box near the bottom
-   (the description box rejects `.deb` with "We don't support that file type"), then **Publish release**.
-
-### 3. (Optional) Store the VPN login as Codespaces secrets
-Skip this to type the server, username and password each time `vpn.sh` runs (the password isn't shown while typing).
+### 1. (Optional) Save your VPN login as Codespaces secrets
+Skip this to type the server, username and password each time the VPN connects (the password isn't shown).
 Any secret that is set is used instead of asking.
 
 GitHub → profile picture → **Settings → Codespaces → Codespace user secrets → New secret**.
@@ -57,73 +45,51 @@ For each one set **Repository access** to this repo.
 | `VPN_SERVER` | Windows NetExtender → Edit Connection → **Server** (`<vpn-server-ip>:4433`) |
 | `VPN_USER` | Windows NetExtender → **Username** |
 | `VPN_PASS` | Your VPN password |
-| `VPN_DOMAIN` | The domain name you pick at login (the **domain**, not the connection name like "Ireland VPN") |
+| `VPN_DOMAIN` | The domain you pick at login (the **domain**, not the connection name like "Ireland VPN") |
 
 Secrets are read only when a Codespace starts: after adding or changing one, stop and reopen the Codespace.
 
-### 4. Codespace setup files (already in this repo)
-- **`devcontainer.json`**
-  - `runArgs: --cap-add=NET_ADMIN --cap-add=NET_RAW --device=/dev/net/tun` – lets the container create the VPN tunnel.
-  - `postCreateCommand` – installs `netcat` and downloads + installs NetExtender from the `netextender` release.
-    Runs **once when the Codespace is created**, not on every start.
-- **`vpn.sh`**
-  - Uses the secrets that are set and asks for any missing server / username / password (domain optional).
-  - Starts the NetExtender service by hand (`/usr/local/netextender/NEService`) – Codespaces has no systemd.
-  - Connects with `sudo nxcli <server> -u <user> -p <password> [-d <domain>]`.
+### 2. Open a Codespace
+Repo page → green **`<> Code`** button → **Codespaces** tab → **Create codespace on main**.
+The first start takes a few minutes: it installs the NetExtender VPN client.
+Next time, open your **existing** Codespace from the same tab (nothing is reinstalled).
 
-### 5. Prepare the remote GDB server PC
-1. Find the PC's real IP: run `ipconfig` and use the **Ethernet adapter Ethernet → IPv4 Address**.
-   Ignore `VMware Network Adapter VMnet1/VMnet8` addresses (e.g. `192.168.x.1`) – they are not reachable from outside the PC.
-2. The IP must be inside a range the VPN routes (shown as **IPv4 Routes** when `vpn.sh` connects).
-   If it isn't, ask IT to add that subnet to the SonicWall routes.
-3. Start the Ashling GDB server with the Opella-XD attached. It must:
-   - listen on all interfaces (`0.0.0.0:<port>`), not `127.0.0.1` – check with
-     `netstat -ano | findstr LISTENING`
-   - be allowed by Windows Firewall (Administrator Command Prompt):
-     ```
-     netsh advfirewall firewall add rule name="Ashling gdbserver" dir=in action=allow protocol=TCP localport=<port>
-     ```
-4. The **probe is selected on the GDB server side** (serial number on its command line). The Ashling extension's
-   probe dropdown stays empty in a Codespace – there is no USB there, and that's expected.
+### 3. Connect the VPN
+When the Codespace opens, the **Connect VPN** task runs in its own terminal.
+If VS Code asks whether to allow automatic tasks, choose **Allow**. Click into that terminal and:
+- Without secrets: enter the server (`<vpn-server-ip>:4433`), username and password.
+- First time: at the server certificate prompt type **`T`** (Trust). It's Ashling's self-signed certificate.
+- If asked *"Please select a domain(id)"* type the **number** (e.g. `1`). A `VPN_DOMAIN` secret skips this.
 
----
-
-## Every time
-
-### 6. Open the Codespace
-Repo page → green **`<> Code`** button → **Codespaces** tab →
-**Create codespace on main** (first time) or click your **existing** Codespace (nothing reinstalls).
-
-Rebuild (**Codespaces: Rebuild Container**) is only needed when `devcontainer.json` changes.
-A change to `vpn.sh` only needs `git pull`.
-
-### 7. Install the Ashling extension and SDK (first time per Codespace)
-1. Install the Ashling RiscFree `.vsix` **inside the Codespace** (it must show under *Codespace – Installed*, not *Local*).
-2. Let the extension download the **Linux** Ashling SDK.
-3. Build: press **Ctrl+Shift+B** (or **Terminal → Run Build Task**) and pick **sum** or **picojpeg**.
-   Output goes to `<project>/build/`. From the terminal: `bash build.sh sum`.
-   Both SDKs must be installed (`sum` uses the MIPS toolchain, `picojpeg` the RISC-V toolchain).
-   To add an example: add a line to the `case` in `build.sh` and an option in `.vscode/tasks.json`.
-
-### 8. Connect the VPN
-When the Codespace opens, the **Connect VPN** task runs `vpn.sh` automatically in its own terminal. If it asks to trust the
-server certificate, click into that terminal and type **`T`**. Without secrets it first asks for the server
-(`<vpn-server-ip>:4433`), username and password in the same terminal. (If VS Code asks whether to allow automatic tasks, choose **Allow**.) To run it by hand:
-```bash
-bash .devcontainer/vpn.sh
+Success looks like:
 ```
-Running it while already connected just prints the VPN interface.
-- First run: certificate prompt → answer **`T`** (Trust). It's Ashling's self-signed server certificate.
-- If asked *"Please select a domain(id)"* type the **number** (e.g. `1`). Set a `VPN_DOMAIN` secret to skip this.
-- Success looks like:
-  ```
-  NetExtender has been connected.
-  IPv4 Routes : <remote subnets>
-  Connected!!!
-  snwl_ssltunnel   UNKNOWN   <vpn-client-ip>/32
-  ```
+NetExtender has been connected.
+IPv4 Routes : <remote subnets>
+Connected!!!
+snwl_ssltunnel   UNKNOWN   <vpn-client-ip>/32
+```
+To connect again later (or check the connection), run `bash .devcontainer/vpn.sh`.
+If the VPN is already up, it only prints the VPN interface.
 
-### 9. Check the GDB server is reachable
+### 4. Install the Ashling extension and SDK (first time per Codespace)
+1. In the **Extensions** view, search for **Ashling RiscFree** and click **Install** (it installs in the Codespace).
+2. From the extension's **SDK Manager**, download the **Linux RISC-V** SDK.
+
+### 5. Build the example
+1. Open the **Ashling Project View**. The repo shows as one project, **examples**.
+2. Under **SDK Selection**, choose the **RISC-V** SDK.
+3. Click **Build Actions → Build** (or Rebuild / Clean). It builds `riscv-picojpeg-cmake`.
+4. Output goes to `riscv-picojpeg-cmake/build/`, and the binary is listed under **Binaries**.
+
+### 6. Prepare the remote GDB server PC
+On the PC with the debug probe (Windows):
+1. Start the Ashling GDB server with the debug probe attached.
+2. Find the PC's IP: run `ipconfig` and use the **Ethernet adapter Ethernet → IPv4 Address**.
+3. Find the port in the terminal where the GDB server is running: it prints the port it listens on.
+   You need this IP and port in steps 7 and 8 (`<gdbserver-pc-ip>` and `<port>`).
+
+### 7. Check the GDB server is reachable
+In the Codespace terminal:
 ```bash
 nc -zv <gdbserver-pc-ip> <port>
 ```
@@ -132,32 +98,39 @@ nc -zv <gdbserver-pc-ip> <port>
 |---|---|
 | `succeeded` | Ready to debug |
 | `Connection refused` | VPN works, but nothing listens on that port: GDB server not running, wrong port, or bound to `127.0.0.1` |
-| times out | IP not in VPN routes, or Windows Firewall blocks the port |
+| times out | Wrong IP, or Windows Firewall blocks the port |
 
-### 10. Debug
-In the Ashling extension create a **remote GDB server** debug configuration:
-host `<gdbserver-pc-ip>`, port `<port>`, do **not** start a local GDB server. Press **F5**.
+### 8. Debug
+In the Ashling extension, add a **remote GDB server** debug configuration: host `<gdbserver-pc-ip>`,
+port `<port>`.
 
 ---
 
-## Problems hit and fixes
+## Troubleshooting
 
 | Problem | Fix |
 |---|---|
 | No Codespaces button on the repo page | It's inside the green **`<> Code`** button → **Codespaces** tab |
-| Release upload: "We don't support that file type" | Use the **Attach binaries** box, not the description box |
-| `git` "Filename too long" on Windows | `git config core.longpaths true` |
-| `nxcli not found` | NetExtender links `nxcli` into `/usr/sbin` (not on the user's PATH); `vpn.sh` adds `/usr/local/netextender` to PATH |
-| `nxcli connect`: `unknown shorthand flag: 's'` | `nxcli connect` takes a saved profile name; use the direct form `nxcli <server:port> -u -p -d` |
-| VPN asks to select a domain | `VPN_DOMAIN` held the connection name; set it to the real domain |
-| `nc` to `192.168.x.1` fails | That's a VMware adapter; use the Ethernet adapter IP |
-| `nc` → `Connection refused` | See step 5.3 – GDB server port / bind address |
+| Connect VPN task didn't start | Run `bash .devcontainer/vpn.sh` in a terminal, or allow automatic tasks when VS Code asks |
+| `nxcli not found` | The VPN client didn't install: rebuild the Codespace (**Codespaces: Rebuild Container**) |
+| VPN asks to select a domain | Type the number; if you set `VPN_DOMAIN`, it must be the domain, not the connection name |
+| Build fails with compiler errors | **SDK Selection** isn't the RISC-V SDK (step 5.2) |
+| `nc` → `Connection refused` | GDB server not running, or on a different port (step 6.1) |
+| `git` "Filename too long" when cloning on Windows | `git config core.longpaths true` |
 
-## Status / to do
-- [x] Example hosted on GitHub
-- [x] Codespace created, NetExtender installed, VPN connected from the Codespace
-- [x] Remote PC reachable over VPN (`nc` gets *Connection refused*, i.e. the host answers)
-- [ ] GDB server listening on a network port, `nc` → `succeeded`
-- [ ] Full debug session (load, breakpoint, step) with F5
-- [x] VPN auto-connects when the Codespace opens (`Connect VPN` task, runOn folderOpen)
-- [ ] Optional: make the repo Private
+---
+
+## For maintainers
+
+- **Codespace definition** (`.devcontainer/devcontainer.json`):
+  - `runArgs: --cap-add=NET_ADMIN --cap-add=NET_RAW --device=/dev/net/tun` lets the container create the VPN tunnel.
+  - `postCreateCommand` installs `netcat` and NetExtender from this repo's `netextender` release, once when the
+    Codespace is created.
+  - Turns on automatic tasks (`task.allowAutomaticTasks`) so **Connect VPN** runs when the folder opens.
+  - Changes here need **Codespaces: Rebuild Container** in existing Codespaces. A change to `vpn.sh` only needs `git pull`.
+- **`vpn.sh`**: uses the secrets that are set and asks for the rest; starts the NetExtender service by hand
+  (`/usr/local/netextender/NEService`, Codespaces has no systemd) and connects with
+  `sudo nxcli <server> -u <user> -p <password> [-d <domain>]`. Use this direct form: `nxcli connect` takes a saved profile.
+- **Updating NetExtender**: download **NetExtender Linux AMD 64-Bit** (`.deb`) from SonicWall, then on GitHub edit
+  the **`netextender`** release and drop the `.deb` into the **Attach binaries** box (the description box rejects
+  `.deb`). Keep only one `.deb` there.
